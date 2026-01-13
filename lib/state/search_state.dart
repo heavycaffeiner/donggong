@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
-import '../../models/types.dart';
-import '../../services/api_service.dart';
+import '../models/types.dart';
+import '../services/api_service.dart';
 
 /// 검색 상태 관리 (GalleryState에서 분리)
 /// 검색 쿼리, 자동완성 제안 관리

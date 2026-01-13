@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../models/types.dart';
+import '../../models/types.dart';
 import '../../state/navigation_state.dart';
 import '../../state/reader_state.dart';
 import '../detail/detail_bottom_sheet.dart';
 import 'gallery_card.dart';
 import 'loading_widget.dart';
-import '../../../services/db_service.dart';
+import '../../services/db_service.dart';
 
 /// 공통 갤러리 리스트 위젯
 class GalleryListView extends StatelessWidget {

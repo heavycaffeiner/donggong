@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
-import '../../../models/types.dart';
+import '../../models/types.dart';
 import '../../state/favorite_state.dart';
-import '../../../core/app_config.dart';
+import '../../core/app_config.dart';
 
 class GalleryCard extends StatelessWidget {
   final GalleryDetail item;

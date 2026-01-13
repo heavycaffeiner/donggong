@@ -8,8 +8,8 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../models/types.dart';
-import '../presentation/state/favorite_state.dart';
-import '../presentation/state/settings_state.dart';
+import '../state/favorite_state.dart';
+import '../state/settings_state.dart';
 import '../services/db_service.dart';
 
 class SettingsScreen extends StatefulWidget {

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../models/types.dart';
+import '../../models/types.dart';
 import '../chips/tag_chip.dart';
 
 class DetailMetadata extends StatelessWidget {

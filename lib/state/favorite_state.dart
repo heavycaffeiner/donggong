@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import '../../models/types.dart';
-import '../../services/api_service.dart';
-import '../../services/db_service.dart';
+import '../models/types.dart';
+import '../services/api_service.dart';
+import '../services/db_service.dart';
 
 /// 즐겨찾기 상태 관리
 class FavoriteState extends ChangeNotifier {

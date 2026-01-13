@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
-import '../../models/types.dart';
-import '../../services/api_service.dart';
-import '../../services/db_service.dart';
+import '../models/types.dart';
+import '../services/api_service.dart';
+import '../services/db_service.dart';
 
 /// 리더 상태 관리
 /// Repository 레이어 없이 직접 ApiService/DbService 호출

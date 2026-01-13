@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../presentation/state/recent_state.dart';
-import '../presentation/state/navigation_state.dart';
-import '../presentation/widgets/common/gallery_list_view.dart';
+import '../state/recent_state.dart';
+import '../state/navigation_state.dart';
+import '../widgets/common/gallery_list_view.dart';
 import '../models/types.dart' show CustomScreen;
 
 class RecentScreen extends StatefulWidget {

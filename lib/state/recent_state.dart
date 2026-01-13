@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
-import '../../models/types.dart';
-import '../../services/api_service.dart';
-import '../../services/db_service.dart';
+import '../models/types.dart';
+import '../services/api_service.dart';
+import '../services/db_service.dart';
 
 class RecentState extends ChangeNotifier {
   List<GalleryDetail> _recents = [];

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../../../models/types.dart';
+import '../../models/types.dart';
 
 class DetailHeader extends StatelessWidget {
   final GalleryDetail item;

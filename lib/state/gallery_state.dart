@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
-import '../../models/types.dart';
-import '../../services/api_service.dart';
+import '../models/types.dart';
+import '../services/api_service.dart';
 
 /// 갤러리 목록 상태 관리
 class GalleryState extends ChangeNotifier {

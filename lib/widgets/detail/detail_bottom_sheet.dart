@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../models/types.dart';
+import '../../models/types.dart';
 import 'detail_header.dart';
 import 'detail_actions.dart';
 import 'detail_metadata.dart';

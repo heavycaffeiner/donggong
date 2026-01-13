@@ -4,9 +4,9 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/services.dart';
 import '../models/types.dart';
 import '../core/app_config.dart';
-import '../presentation/state/reader_state.dart';
-import '../presentation/state/navigation_state.dart';
-import '../presentation/state/favorite_state.dart';
+import '../state/reader_state.dart';
+import '../state/navigation_state.dart';
+import '../state/favorite_state.dart';
 
 class ReaderScreen extends StatefulWidget {
   const ReaderScreen({super.key});

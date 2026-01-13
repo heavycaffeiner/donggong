@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../models/types.dart';
-import '../../../models/types.dart' show CustomScreen;
+import '../../models/types.dart';
+import '../../models/types.dart' show CustomScreen;
 import '../../state/favorite_state.dart';
 import '../../state/gallery_state.dart';
 import '../../state/navigation_state.dart';

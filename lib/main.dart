@@ -7,14 +7,14 @@ import 'screens/recent_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/reader_screen.dart';
 
-import 'presentation/state/navigation_state.dart';
-import 'presentation/state/gallery_state.dart';
-import 'presentation/state/favorite_state.dart';
-import 'presentation/state/reader_state.dart';
-import 'presentation/state/settings_state.dart';
-import 'presentation/state/search_state.dart';
-import 'presentation/state/recent_state.dart';
-import 'presentation/widgets/navigation/app_drawer.dart';
+import 'state/navigation_state.dart';
+import 'state/gallery_state.dart';
+import 'state/favorite_state.dart';
+import 'state/reader_state.dart';
+import 'state/settings_state.dart';
+import 'state/search_state.dart';
+import 'state/recent_state.dart';
+import 'widgets/navigation/app_drawer.dart';
 import 'models/types.dart' show CustomScreen;
 
 void main() async {

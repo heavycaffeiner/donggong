@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../models/types.dart';
-import '../../../services/api_service.dart';
+import '../../models/types.dart';
+import '../../services/api_service.dart';
 import '../../state/search_state.dart';
 import '../../state/gallery_state.dart';
 import '../../state/navigation_state.dart';

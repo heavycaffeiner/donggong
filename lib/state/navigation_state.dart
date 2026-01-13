@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import '../../models/types.dart' show CustomScreen;
+import '../models/types.dart' show CustomScreen;
 
 class NavigationState extends ChangeNotifier {
   CustomScreen _screen = CustomScreen.home;

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../models/types.dart';
+import '../../models/types.dart';
 // For enum
 import '../../state/favorite_state.dart';
 import '../../state/navigation_state.dart';
