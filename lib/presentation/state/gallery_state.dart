@@ -3,10 +3,9 @@ import '../../models/types.dart';
 import '../../services/api_service.dart';
 
 /// 갤러리 목록 상태 관리
-/// 검색 로직은 SearchState로 분리됨
 class GalleryState extends ChangeNotifier {
-  List<GalleryItem> _galleries = [];
-  List<GalleryItem> get galleries => _galleries;
+  List<GalleryDetail> _galleries = [];
+  List<GalleryDetail> get galleries => _galleries;
 
   bool _loading = false;
   bool get loading => _loading;
@@ -15,9 +14,12 @@ class GalleryState extends ChangeNotifier {
   bool get refreshing => _refreshing;
 
   int _page = 1;
+  String _lastQuery = '';
+  String _lastLang = '';
 
   void clear() {
     _galleries = [];
+    _page = 1;
     notifyListeners();
   }
 
@@ -25,8 +27,24 @@ class GalleryState extends ChangeNotifier {
     bool reset = false,
     String defaultLang = 'korean',
     String query = '',
+    bool force = false,
   }) async {
     if (_loading) return;
+
+    if (reset &&
+        !force &&
+        _lastQuery == query &&
+        _lastLang == defaultLang &&
+        _galleries.isNotEmpty) {
+      return;
+    }
+
+    if (reset) {
+      _galleries = [];
+      _lastQuery = query;
+      _lastLang = defaultLang;
+    }
+
     _loading = true;
     notifyListeners();
 
@@ -41,7 +59,11 @@ class GalleryState extends ChangeNotifier {
         _galleries = list;
         _page = 2;
       } else {
-        _galleries.addAll(list);
+        final existingIds = _galleries.map((g) => g.id).toSet();
+        final newItems = list
+            .where((g) => !existingIds.contains(g.id))
+            .toList();
+        _galleries.addAll(newItems);
         _page = p + 1;
       }
     } catch (e) {
@@ -55,7 +77,12 @@ class GalleryState extends ChangeNotifier {
   Future<void> refresh(String defaultLang, {String query = ''}) async {
     _refreshing = true;
     notifyListeners();
-    await loadGalleries(reset: true, defaultLang: defaultLang, query: query);
+    await loadGalleries(
+      reset: true,
+      defaultLang: defaultLang,
+      query: query,
+      force: true,
+    );
     _refreshing = false;
     notifyListeners();
   }

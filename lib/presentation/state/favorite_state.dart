@@ -6,11 +6,11 @@ import '../../services/api_service.dart';
 import '../../services/db_service.dart';
 
 /// 즐겨찾기 상태 관리
-/// Repository 레이어 없이 직접 DbService/ApiService 호출
 class FavoriteState extends ChangeNotifier {
   List<GalleryDetail> _favorites = [];
   List<GalleryDetail> get favorites => _favorites;
 
+  List<GalleryDetail> _allLoaded = [];
   FavoritesData _favoritesData = FavoritesData.empty();
   FavoritesData get favoritesData => _favoritesData;
 
@@ -18,23 +18,38 @@ class FavoriteState extends ChangeNotifier {
   bool get loading => _loading;
 
   String _query = '';
+  List<int> _cachedIds = [];
 
   void clear() {
     _favorites = [];
+    _allLoaded = [];
+    _cachedIds = [];
     notifyListeners();
   }
 
   Future<void> loadFavorites({String? query}) async {
+    final targetQuery = query ?? _query;
+    final currentData = await DbService.getFavorites();
+    final dbIds = currentData.favoriteId.toList();
+
+    // Compare with cached IDs - skip if unchanged and query is same
+    if (_listEquals(dbIds, _cachedIds) &&
+        targetQuery == _query &&
+        _favorites.isNotEmpty) {
+      return;
+    }
+
+    _favorites = [];
+    _allLoaded = [];
     _loading = true;
     notifyListeners();
 
     if (query != null) _query = query;
+    _cachedIds = dbIds;
 
     try {
-      _favoritesData = await DbService.getFavorites();
+      _favoritesData = currentData;
       final ids = _favoritesData.favoriteId.reversed.toList();
-      _favorites = []; // Reset list
-      _allLoadedFavorites = [];
 
       if (ids.isEmpty) {
         _loading = false;
@@ -42,37 +57,27 @@ class FavoriteState extends ChangeNotifier {
         return;
       }
 
-      // 1. Load from Local Cache (Batched)
-      // Chunk size 50 for smooth UI updates
+      // 1. 로컬 캐시에서 로드 (배치 단위)
       final missingIds = <int>[];
 
       for (var i = 0; i < ids.length; i += 50) {
         final end = (i + 50 < ids.length) ? i + 50 : ids.length;
         final chunkIds = ids.sublist(i, end);
-
         final cachedMaps = await DbService.getCachedGalleries(chunkIds);
-
-        // Map ID to Cached Data
         final cachedMap = {
           for (var item in cachedMaps) item['id'] as int: item,
         };
-
-        final chunkDetails = <GalleryDetail>[];
 
         for (final id in chunkIds) {
           if (cachedMap.containsKey(id)) {
             try {
               final json = jsonDecode(cachedMap[id]!['json'] as String);
-
-              // Dynamic Thumbnail Generation (Solve URL expiration)
               if (json['files'] != null && (json['files'] as List).isNotEmpty) {
-                final hash = json['files'][0]['hash'];
-                json['thumbnail'] = ApiService.buildThumbUrl(hash);
+                json['thumbnail'] = ApiService.buildThumbUrl(
+                  json['files'][0]['hash'],
+                );
               }
-
-              final detail = GalleryDetail.fromJson(json);
-              chunkDetails.add(detail);
-              _allLoadedFavorites.add(detail); // Keep track of all items
+              _allLoaded.add(GalleryDetail.fromJson(json));
             } catch (_) {
               missingIds.add(id);
             }
@@ -81,33 +86,18 @@ class FavoriteState extends ChangeNotifier {
           }
         }
 
-        _favorites.addAll(chunkDetails);
-
-        // Apply filter immediately if query exists
-        if (_query.isNotEmpty) {
-          // Note: This filters only currently loaded items.
-          // Ideally we should filter the whole list, but we are building it.
-          // For search to work 100%, we should probably keep a separate full list
-          // and _favorites is the filtered one.
-          // But current structure uses _favorites as the display list.
-          // Let's keep adding to _favorites, but filtering logic usually runs on full list.
-          // Let's introduce _allFavorites to hold full data.
-        }
-
-        notifyListeners(); // Update UI per chunk
-        await Future.delayed(Duration.zero); // Yield to event loop
+        _updateFilteredList();
+        notifyListeners();
+        await Future.delayed(Duration.zero);
       }
 
       _loading = false;
       notifyListeners();
 
-      // 2. Fetch Missing Items (Background)
+      // 2. 누락된 항목 백그라운드 fetch
       if (missingIds.isNotEmpty) {
         await _fetchAndCacheMissing(missingIds);
       }
-
-      // 3. Background Refresh for Stale Items (Optional, e.g. > 3 days old)
-      // Implementation omitted for brevity to focus on core performance first.
     } catch (e) {
       debugPrint('Error loading favorites: $e');
       _loading = false;
@@ -115,27 +105,7 @@ class FavoriteState extends ChangeNotifier {
     }
   }
 
-  // Separate Full List from Display List necessary for search?
-  // Current implementation: _filterByQuery takes 'validDetails' and returns filtered list.
-  // But we are appending to _favorites incrementally.
-  // To support search properly with incremental loading:
-  // We need a backing list `_cachedFavorites` and `_favorites` is the view.
-  // For now, let's just append to _favorites. If query implies filtering,
-  // we might show partial results until full load.
-  // BUT the plan said "100% search guaranteed".
-  // This implies we should load ALL into memory.
-  // The above code loads ALL into _favorites incrementally.
-  // While loading, if query is present, we should probably apply filter to the chunk before adding?
-  // Or better: Load all to `_allFavorites` (backing list), then run filter.
-
-  // Let's stick to the plan: Load all into memory.
-  // Use `_allLoadedFavorites` to store everything.
-  // `_favorites` will be `_filterByQuery(_allLoadedFavorites, _query)`.
-
-  List<GalleryDetail> _allLoadedFavorites = [];
-
   Future<void> _fetchAndCacheMissing(List<int> ids) async {
-    // Fetch in batches of 10
     final mapsToCache = <Map<String, dynamic>>[];
 
     for (var i = 0; i < ids.length; i += 10) {
@@ -156,22 +126,17 @@ class FavoriteState extends ChangeNotifier {
         if (result != null) {
           final detail = result.$1;
           final json = result.$2;
-
           if (detail.id != 0) {
-            _allLoadedFavorites.add(detail);
-
-            // Enrich JSON with ID if missing (API usually sends it, but ensuring)
+            _allLoaded.add(detail);
             json['id'] = detail.id;
             mapsToCache.add(json);
           }
         }
       }
 
-      // Update UI
-      _updateFavoritesList();
+      _updateFilteredList();
       notifyListeners();
 
-      // Cache
       if (mapsToCache.isNotEmpty) {
         await DbService.cacheGalleries(mapsToCache);
         mapsToCache.clear();
@@ -179,69 +144,24 @@ class FavoriteState extends ChangeNotifier {
     }
   }
 
-  void _updateFavoritesList() {
-    _favorites = _filterByQuery(_allLoadedFavorites, _query);
+  bool _listEquals(List<int> a, List<int> b) {
+    if (a.length != b.length) return false;
+    for (int i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
+  void _updateFilteredList() {
+    // GalleryDetail.matches() 사용
+    _favorites = _query.isEmpty
+        ? _allLoaded
+        : _allLoaded.where((item) => item.matches(_query)).toList();
   }
 
   Future<void> refreshFavorites() async {
-    // Manual Pull-to-Refresh
-    // Just reload from DB (fast).
-    // If user wants 'force network update', that's a different feature (Corner Case C-3).
-    // For now, just re-read DB and maybe trigger Stale check.
+    _cachedIds = [];
     await loadFavorites();
-  }
-
-  List<GalleryDetail> _filterByQuery(List<GalleryDetail> items, String query) {
-    if (query.isEmpty) return items;
-
-    // 언더바를 공백으로 변환하여 검색 (검색어에 언더바가 올 수 있음)
-    final normalizedQuery = query.replaceAll('_', ' ').toLowerCase();
-
-    // prefix 파싱 (예: artist:name, female:tag)
-    String? searchType;
-    String searchValue = normalizedQuery;
-
-    if (normalizedQuery.contains(':')) {
-      final parts = normalizedQuery.split(':');
-      final prefix = parts[0];
-      if ([
-        'artist',
-        'female',
-        'male',
-        'tag',
-        'series',
-        'language',
-      ].contains(prefix)) {
-        searchType = prefix;
-        searchValue = parts.sublist(1).join(':').trim();
-      }
-    }
-
-    return items.where((item) {
-      // 타입별 검색
-      if (searchType == 'artist') {
-        return item.artists.any((a) => a.toLowerCase().contains(searchValue));
-      } else if (searchType == 'female' || searchType == 'male') {
-        // female:xxx 또는 male:xxx 태그 검색
-        final fullTag = '$searchType:$searchValue';
-        return item.tags.any(
-          (t) => t.toLowerCase().replaceAll('_', ' ').contains(fullTag),
-        );
-      } else if (searchType == 'tag') {
-        return item.tags.any(
-          (t) => t.toLowerCase().replaceAll('_', ' ').contains(searchValue),
-        );
-      } else if (searchType == 'language') {
-        return item.language?.toLowerCase().contains(searchValue) ?? false;
-      }
-
-      // 일반 검색 (제목, 작가, 태그 모두)
-      return item.title.toLowerCase().contains(searchValue) ||
-          item.artists.any((a) => a.toLowerCase().contains(searchValue)) ||
-          item.tags.any(
-            (t) => t.toLowerCase().replaceAll('_', ' ').contains(searchValue),
-          );
-    }).toList();
   }
 
   Future<void> toggleFavorite(String type, String value) async {
@@ -265,34 +185,34 @@ class FavoriteState extends ChangeNotifier {
       await DbService.addFavorite(type, value);
     }
 
+    _cachedIds = [];
     await loadFavorites();
   }
 
   bool isFavorite(String type, dynamic value) {
-    if (type == 'gallery') {
-      final id = int.tryParse(value.toString());
-      return id != null && _favoritesData.favoriteId.contains(id);
-    } else if (type == 'artist') {
-      return _favoritesData.favoriteArtist.contains(value);
-    } else if (type == 'tag') {
-      return _favoritesData.favoriteTag.contains(value);
-    } else if (type == 'language') {
-      return _favoritesData.favoriteLanguage.contains(value);
+    switch (type) {
+      case 'gallery':
+        final id = int.tryParse(value.toString());
+        return id != null && _favoritesData.favoriteId.contains(id);
+      case 'artist':
+        return _favoritesData.favoriteArtist.contains(value);
+      case 'tag':
+        return _favoritesData.favoriteTag.contains(value);
+      case 'language':
+        return _favoritesData.favoriteLanguage.contains(value);
+      default:
+        return false;
     }
-    return false;
   }
 
   Future<List<int>> validateFavorites() async {
     final invalidIds = <int>[];
-
-    // 복사본으로 순회
     final idsToCheck = List<int>.from(_favoritesData.favoriteId);
 
     for (final id in idsToCheck) {
       try {
         await ApiService.getDetail(id);
-      } catch (e) {
-        // 에러 발생 시(404, 파싱 에러 등) 유효하지 않은 것으로 간주
+      } catch (_) {
         invalidIds.add(id);
       }
     }
@@ -303,6 +223,7 @@ class FavoriteState extends ChangeNotifier {
     for (final id in ids) {
       await DbService.removeFavorite('gallery', id.toString());
     }
+    _cachedIds = [];
     await loadFavorites();
   }
 }

@@ -9,16 +9,14 @@ import 'loading_widget.dart';
 import '../../../services/db_service.dart';
 
 /// 공통 갤러리 리스트 위젯
-/// HomeScreen, RecentScreen, FavoritesScreen에서 공유
 class GalleryListView extends StatelessWidget {
-  final List<GalleryItem> items;
+  final List<GalleryDetail> items;
   final bool isLoading;
   final String emptyMessage;
   final Future<void> Function()? onRefresh;
   final ScrollController? scrollController;
   final bool isDismissible;
   final void Function(int id)? onDismissed;
-  final Widget? header;
 
   const GalleryListView({
     super.key,
@@ -29,21 +27,18 @@ class GalleryListView extends StatelessWidget {
     this.scrollController,
     this.isDismissible = false,
     this.onDismissed,
-    this.header,
   });
 
   void _openReader(BuildContext context, int id) {
     final readerState = Provider.of<ReaderState>(context, listen: false);
     final navState = Provider.of<NavigationState>(context, listen: false);
 
-    // Save to history
     DbService.addRecentViewed(id);
-
     readerState.loadGallery(id);
     navState.setScreen(CustomScreen.reader);
   }
 
-  void _showDetail(BuildContext context, GalleryItem item) {
+  void _showDetail(BuildContext context, GalleryDetail item) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -56,12 +51,8 @@ class GalleryListView extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    // Loading state
-    if (isLoading && items.isEmpty) {
-      return const LoadingWidget();
-    }
+    if (isLoading && items.isEmpty) return const LoadingWidget();
 
-    // Empty state
     if (items.isEmpty) {
       return Center(
         child: Text(
@@ -71,13 +62,10 @@ class GalleryListView extends StatelessWidget {
       );
     }
 
-    // Build list
     Widget listView = ListView.builder(
       controller: scrollController,
-      padding: const EdgeInsets.only(top: 8, bottom: 24),
       itemCount: items.length + (isLoading ? 1 : 0),
       itemBuilder: (context, index) {
-        // Loading indicator at bottom
         if (index == items.length) {
           return const Center(
             child: Padding(
@@ -94,7 +82,6 @@ class GalleryListView extends StatelessWidget {
           onLongPress: () => _showDetail(context, item),
         );
 
-        // Dismissible wrapper for Recent screen
         if (isDismissible && onDismissed != null) {
           return Dismissible(
             key: Key(item.id.toString()),
@@ -114,11 +101,21 @@ class GalleryListView extends StatelessWidget {
       },
     );
 
-    // Wrap with RefreshIndicator if onRefresh provided
     if (onRefresh != null) {
       listView = RefreshIndicator(onRefresh: onRefresh!, child: listView);
     }
 
-    return listView;
+    return GestureDetector(
+      onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+      child: NotificationListener<ScrollNotification>(
+        onNotification: (notification) {
+          if (notification is ScrollStartNotification) {
+            FocusManager.instance.primaryFocus?.unfocus();
+          }
+          return false;
+        },
+        child: listView,
+      ),
+    );
   }
 }

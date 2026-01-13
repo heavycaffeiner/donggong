@@ -3,9 +3,10 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
 import '../../../models/types.dart';
 import '../../state/favorite_state.dart';
+import '../../../core/app_config.dart';
 
 class GalleryCard extends StatelessWidget {
-  final GalleryItem item;
+  final GalleryDetail item;
   final VoidCallback onTap;
   final VoidCallback onLongPress;
 
@@ -22,7 +23,6 @@ class GalleryCard extends StatelessWidget {
     final colorScheme = theme.colorScheme;
     final textTheme = theme.textTheme;
 
-    // Use Selector to rebuild only when favorite status changes
     return Selector<FavoriteState, bool>(
       selector: (_, state) => state.isFavorite('gallery', item.id),
       builder: (context, isFav, child) {
@@ -31,13 +31,6 @@ class GalleryCard extends StatelessWidget {
           elevation: 0,
           color: colorScheme.surfaceContainer,
           clipBehavior: Clip.antiAlias,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: BorderSide(
-              color: colorScheme.outlineVariant.withValues(alpha: 0.5),
-              width: 1,
-            ),
-          ),
           child: InkWell(
             onTap: onTap,
             onLongPress: onLongPress,
@@ -55,7 +48,7 @@ class GalleryCard extends StatelessWidget {
                     children: [
                       CachedNetworkImage(
                         imageUrl: item.thumbnail,
-                        httpHeaders: const {'Referer': 'https://hitomi.la/'},
+                        httpHeaders: AppConfig.defaultHeaders,
                         fit: BoxFit.cover,
                         placeholder: (context, url) => Container(
                           color: colorScheme.surfaceContainerHigh,
@@ -75,30 +68,6 @@ class GalleryCard extends StatelessWidget {
                           ),
                         ),
                       ),
-                      // Rank/Type Overlay
-                      Positioned(
-                        top: 6,
-                        left: 6,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.7),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            item.type.toUpperCase(),
-                            style: textTheme.labelSmall?.copyWith(
-                              color: Colors.white,
-                              fontSize: 9,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                      // Favorite Overlay
                       if (isFav)
                         Positioned(
                           bottom: 6,
@@ -119,7 +88,6 @@ class GalleryCard extends StatelessWidget {
                     ],
                   ),
                 ),
-
                 // Info
                 Expanded(
                   child: Padding(
@@ -128,7 +96,6 @@ class GalleryCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        // Title
                         Text(
                           item.title,
                           maxLines: 2,
@@ -138,68 +105,44 @@ class GalleryCard extends StatelessWidget {
                             height: 1.2,
                           ),
                         ),
-                        const SizedBox(height: 6),
-
-                        // Artist
+                        const SizedBox(height: 8),
+                        _buildInfoRow(
+                          Icons.brush,
+                          item.artists.isNotEmpty
+                              ? item.artists.join(', ')
+                              : 'N/A',
+                          colorScheme,
+                          textTheme,
+                        ),
+                        const SizedBox(height: 8),
+                        _buildInfoRow(
+                          Icons.group,
+                          item.groups.isNotEmpty
+                              ? item.groups.join(', ')
+                              : 'N/A',
+                          colorScheme,
+                          textTheme,
+                        ),
+                        const SizedBox(height: 8),
                         Row(
+                          spacing: 4,
                           children: [
-                            Icon(
-                              Icons.brush,
-                              size: 12,
-                              color: colorScheme.primary,
-                            ),
-                            const SizedBox(width: 4),
-                            Expanded(
-                              child: Text(
-                                item.artists.isNotEmpty
-                                    ? item.artists.join(', ')
-                                    : 'N/A',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: textTheme.bodySmall?.copyWith(
-                                  color: colorScheme.onSurfaceVariant,
-                                ),
+                            _buildChip(item.type, colorScheme, textTheme),
+                            if (item.language != null)
+                              _buildChip(
+                                item.language!,
+                                colorScheme,
+                                textTheme,
                               ),
-                            ),
                           ],
                         ),
-
-                        const SizedBox(height: 12),
-
-                        // Metadata Badges (Language | ID)
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            if (item.language != null)
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: colorScheme.secondaryContainer
-                                      .withValues(alpha: 0.5),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  item.language!,
-                                  style: textTheme.labelSmall?.copyWith(
-                                    color: colorScheme.onSecondaryContainer,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-
-                            Text(
-                              '#${item.id}',
-                              style: textTheme.labelSmall?.copyWith(
-                                color: colorScheme.outline,
-                                fontFeatures: [
-                                  const FontFeature.tabularFigures(),
-                                ],
-                              ),
-                            ),
-                          ],
+                        const SizedBox(height: 8),
+                        Text(
+                          'ID: ${item.id}',
+                          style: textTheme.labelSmall?.copyWith(
+                            color: colorScheme.outline,
+                            fontFeatures: [const FontFeature.tabularFigures()],
+                          ),
                         ),
                       ],
                     ),
@@ -210,6 +153,47 @@ class GalleryCard extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildInfoRow(
+    IconData icon,
+    String text,
+    ColorScheme colorScheme,
+    TextTheme textTheme,
+  ) {
+    return Row(
+      children: [
+        Icon(icon, size: 12, color: colorScheme.primary),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: textTheme.bodySmall?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildChip(String text, ColorScheme colorScheme, TextTheme textTheme) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: colorScheme.secondaryContainer.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        text,
+        style: textTheme.labelSmall?.copyWith(
+          color: colorScheme.onSecondaryContainer,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
     );
   }
 }

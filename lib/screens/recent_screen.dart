@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../presentation/state/recent_state.dart';
+import '../presentation/state/navigation_state.dart';
 import '../presentation/widgets/common/gallery_list_view.dart';
+import '../models/types.dart' show CustomScreen;
 
 class RecentScreen extends StatefulWidget {
   const RecentScreen({super.key});
@@ -11,14 +13,36 @@ class RecentScreen extends StatefulWidget {
 }
 
 class _RecentScreenState extends State<RecentScreen> {
+  late NavigationState _navState;
+
   @override
   void initState() {
     super.initState();
+    _navState = Provider.of<NavigationState>(context, listen: false);
+    _navState.addListener(_onNavigationChanged);
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final recentState = Provider.of<RecentState>(context, listen: false);
-      recentState.clear();
-      recentState.loadRecents();
+      _loadIfNeeded();
     });
+  }
+
+  @override
+  void dispose() {
+    _navState.removeListener(_onNavigationChanged);
+    super.dispose();
+  }
+
+  void _onNavigationChanged() {
+    // Load when switching to recent tab
+    if (_navState.screen == CustomScreen.recentViewed &&
+        _navState.previousScreen != CustomScreen.reader) {
+      _loadIfNeeded();
+    }
+  }
+
+  void _loadIfNeeded() {
+    final recentState = Provider.of<RecentState>(context, listen: false);
+    recentState.loadRecents();
   }
 
   @override

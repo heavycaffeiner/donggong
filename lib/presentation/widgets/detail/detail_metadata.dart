@@ -3,7 +3,7 @@ import '../../../models/types.dart';
 import '../chips/tag_chip.dart';
 
 class DetailMetadata extends StatelessWidget {
-  final GalleryItem item;
+  final GalleryDetail item;
 
   const DetailMetadata({super.key, required this.item});
 

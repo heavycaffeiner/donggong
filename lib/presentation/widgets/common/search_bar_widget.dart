@@ -26,19 +26,30 @@ class _SearchBarWidgetState extends State<SearchBarWidget> {
   OverlayEntry? _overlayEntry;
   List<TagSuggestion> _suggestions = [];
   late SearchState _searchState;
+  late NavigationState _navState;
 
   @override
   void initState() {
     super.initState();
     _searchState = Provider.of<SearchState>(context, listen: false);
+    _navState = Provider.of<NavigationState>(context, listen: false);
     _controller.text = _searchState.query;
     _searchState.addListener(_onSearchStateChanged);
+    _navState.addListener(_onNavigationChanged);
 
     _focusNode.addListener(() {
       if (!_focusNode.hasFocus) {
         _hideOverlay();
       }
     });
+  }
+
+  void _onNavigationChanged() {
+    // Close overlay when navigating to reader
+    if (_navState.screen == CustomScreen.reader) {
+      _hideOverlay();
+      _focusNode.unfocus();
+    }
   }
 
   void _onSearchStateChanged() {
@@ -57,6 +68,7 @@ class _SearchBarWidgetState extends State<SearchBarWidget> {
   void dispose() {
     _hideOverlay();
     _searchState.removeListener(_onSearchStateChanged);
+    _navState.removeListener(_onNavigationChanged);
     _controller.dispose();
     _focusNode.dispose();
     super.dispose();
@@ -86,8 +98,8 @@ class _SearchBarWidgetState extends State<SearchBarWidget> {
   }
 
   Future<void> _onTextChanged(String text) async {
-    final searchState = Provider.of<SearchState>(context, listen: false);
-    searchState.setQuery(text);
+    // Only update suggestions, don't trigger search
+    setState(() {}); // Refresh to show/hide clear button
 
     if (text.isEmpty) {
       setState(() => _suggestions = []);
@@ -133,15 +145,11 @@ class _SearchBarWidgetState extends State<SearchBarWidget> {
       TextPosition(offset: newQuery.length),
     );
 
-    // SearchState ?숆린??
-    final searchState = Provider.of<SearchState>(context, listen: false);
-    searchState.setQuery(newQuery);
-
-    // Suggestions 珥덇린??諛??ㅻ쾭?덉씠 ?リ린
     setState(() => _suggestions = []);
     _hideOverlay();
 
-    _performSearch(context, reload: true);
+    // Keep focus so user can continue adding tags
+    _focusNode.requestFocus();
   }
 
   OverlayEntry _createOverlayEntry() {
@@ -248,6 +256,7 @@ class _SearchBarWidgetState extends State<SearchBarWidget> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         child: Container(
           height: 48,
+          clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
             color: colorScheme.surfaceContainerHigh,
             borderRadius: BorderRadius.circular(24),
@@ -281,9 +290,10 @@ class _SearchBarWidgetState extends State<SearchBarWidget> {
                   onSubmitted: (text) => _onSubmit(context, text),
                 ),
               ),
+              // X button
               if (_controller.text.isNotEmpty)
                 IconButton(
-                  icon: const Icon(Icons.close, size: 20),
+                  icon: Icon(Icons.close, size: 20, color: colorScheme.outline),
                   onPressed: () {
                     _controller.clear();
                     final searchState = Provider.of<SearchState>(
@@ -295,8 +305,36 @@ class _SearchBarWidgetState extends State<SearchBarWidget> {
                     _hideOverlay();
                     _performSearch(context, reload: true);
                   },
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    minWidth: 40,
+                    minHeight: 40,
+                  ),
                 ),
-              const SizedBox(width: 8),
+              // Search button
+              if (_controller.text.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: SizedBox(
+                    width: 36,
+                    height: 36,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: colorScheme.primaryContainer,
+                      ),
+                      child: IconButton(
+                        icon: Icon(
+                          Icons.arrow_forward,
+                          size: 18,
+                          color: colorScheme.onPrimaryContainer,
+                        ),
+                        onPressed: () => _onSubmit(context, _controller.text),
+                        padding: EdgeInsets.zero,
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
@@ -306,6 +344,7 @@ class _SearchBarWidgetState extends State<SearchBarWidget> {
 
   void _onSubmit(BuildContext context, String text) {
     _hideOverlay();
+    _focusNode.unfocus();
     final searchState = Provider.of<SearchState>(context, listen: false);
 
     if (widget.allowDirectId && RegExp(r'^\d+$').hasMatch(text.trim())) {
@@ -327,6 +366,7 @@ class _SearchBarWidgetState extends State<SearchBarWidget> {
     final settingsState = Provider.of<SettingsState>(context, listen: false);
 
     if (navState.screen == CustomScreen.favorites) {
+      favState.clear();
       favState.loadFavorites(query: searchState.query);
     } else {
       if (navState.screen != CustomScreen.home) {

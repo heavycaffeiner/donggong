@@ -3,7 +3,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../../models/types.dart';
 
 class DetailHeader extends StatelessWidget {
-  final GalleryItem item;
+  final GalleryDetail item;
 
   const DetailHeader({super.key, required this.item});
 

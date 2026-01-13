@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../presentation/state/favorite_state.dart';
 import '../presentation/state/search_state.dart';
+import '../presentation/state/navigation_state.dart';
 import '../presentation/widgets/common/gallery_list_view.dart';
 import '../presentation/widgets/common/search_bar_widget.dart';
+import '../models/types.dart' show CustomScreen;
 
 class FavoritesScreen extends StatefulWidget {
   const FavoritesScreen({super.key});
@@ -13,15 +15,38 @@ class FavoritesScreen extends StatefulWidget {
 }
 
 class _FavoritesScreenState extends State<FavoritesScreen> {
+  late SearchState _searchState;
+  late NavigationState _navState;
+
   @override
   void initState() {
     super.initState();
+    _searchState = Provider.of<SearchState>(context, listen: false);
+    _navState = Provider.of<NavigationState>(context, listen: false);
+    _navState.addListener(_onNavigationChanged);
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final favState = Provider.of<FavoriteState>(context, listen: false);
-      final searchState = Provider.of<SearchState>(context, listen: false);
-      favState.clear();
-      favState.loadFavorites(query: searchState.query);
+      _loadIfNeeded();
     });
+  }
+
+  @override
+  void dispose() {
+    _navState.removeListener(_onNavigationChanged);
+    super.dispose();
+  }
+
+  void _onNavigationChanged() {
+    // Load when switching to favorites tab
+    if (_navState.screen == CustomScreen.favorites &&
+        _navState.previousScreen != CustomScreen.reader) {
+      _loadIfNeeded();
+    }
+  }
+
+  void _loadIfNeeded() {
+    final favState = Provider.of<FavoriteState>(context, listen: false);
+    favState.loadFavorites(query: _searchState.query);
   }
 
   @override
@@ -35,13 +60,10 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
           children: [
             const SearchBarWidget(),
             Expanded(
-              child: RefreshIndicator(
-                onRefresh: favState.refreshFavorites,
-                child: GalleryListView(
-                  items: favState.favorites,
-                  isLoading: favState.loading,
-                  emptyMessage: 'No favorites found',
-                ),
+              child: GalleryListView(
+                items: favState.favorites,
+                isLoading: favState.loading,
+                emptyMessage: 'No favorites found',
               ),
             ),
           ],

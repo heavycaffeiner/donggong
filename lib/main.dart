@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'services/db_service.dart';
-import 'widgets/app_drawer.dart';
 import 'screens/home_screen.dart';
 import 'screens/favorites_screen.dart';
 import 'screens/recent_screen.dart';
@@ -15,12 +14,12 @@ import 'presentation/state/reader_state.dart';
 import 'presentation/state/settings_state.dart';
 import 'presentation/state/search_state.dart';
 import 'presentation/state/recent_state.dart';
+import 'presentation/widgets/navigation/app_drawer.dart';
 import 'models/types.dart' show CustomScreen;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await DbService.init();
-
   runApp(const AppBootstrapper());
 }
 
@@ -51,7 +50,6 @@ class DonggongApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final settingsState = Provider.of<SettingsState>(context);
 
-    // Modern Theme Setup
     final isOled = settingsState.settings.theme == 'oledDark';
     const seedColor = Colors.indigo;
 
@@ -108,47 +106,25 @@ class DonggongApp extends StatelessWidget {
 class MainWrapper extends StatelessWidget {
   const MainWrapper({super.key});
 
+  static const _screens = [
+    HomeScreen(),
+    RecentScreen(),
+    FavoritesScreen(),
+    SettingsScreen(),
+  ];
+
   @override
   Widget build(BuildContext context) {
     final navState = Provider.of<NavigationState>(context);
 
-    // Determine AppBar title
-    String title = 'Home';
-    switch (navState.screen) {
-      case CustomScreen.recentViewed:
-        title = 'Recent';
-        break;
-      case CustomScreen.favorites:
-        title = 'Favorites';
-        break;
-      case CustomScreen.settings:
-        title = 'Settings';
-        break;
-      default:
-        title = 'Home';
-    }
-
-    // Determine IndexedStack index
-    int stackIndex = 0;
-    switch (navState.screen) {
-      case CustomScreen.recentViewed:
-        stackIndex = 1;
-        break;
-      case CustomScreen.favorites:
-        stackIndex = 2;
-        break;
-      case CustomScreen.settings:
-        stackIndex = 3;
-        break;
-      default:
-        stackIndex = 0;
-    }
+    // CustomScreen enum의 title/stackIndex 활용 (switch 문 제거)
+    final title = navState.screen.title.isEmpty ? '홈' : navState.screen.title;
+    final stackIndex = navState.screen.stackIndex;
 
     return PopScope(
       canPop: navState.screen != CustomScreen.reader,
       onPopInvokedWithResult: (didPop, result) {
-        if (didPop) return;
-        if (navState.screen == CustomScreen.reader) {
+        if (!didPop && navState.screen == CustomScreen.reader) {
           navState.closeReader();
         }
       },
@@ -162,15 +138,7 @@ class MainWrapper extends StatelessWidget {
               ),
             ),
             drawer: const AppDrawer(),
-            body: IndexedStack(
-              index: stackIndex,
-              children: const [
-                HomeScreen(),
-                RecentScreen(),
-                FavoritesScreen(),
-                SettingsScreen(),
-              ],
-            ),
+            body: IndexedStack(index: stackIndex, children: _screens),
           ),
           if (navState.screen == CustomScreen.reader) const ReaderScreen(),
         ],

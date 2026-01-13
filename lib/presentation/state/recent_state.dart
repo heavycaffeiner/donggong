@@ -4,27 +4,32 @@ import '../../services/api_service.dart';
 import '../../services/db_service.dart';
 
 class RecentState extends ChangeNotifier {
-  List<GalleryItem> _recents = [];
-  List<GalleryItem> get recents => _recents;
+  List<GalleryDetail> _recents = [];
+  List<GalleryDetail> get recents => _recents;
 
   bool _loading = false;
   bool get loading => _loading;
 
+  List<int> _cachedIds = [];
+
   Future<void> loadRecents() async {
+    final dbIds = await DbService.getRecentViewed();
+
+    // Compare with cached IDs - skip if unchanged
+    if (_listEquals(dbIds, _cachedIds)) {
+      return;
+    }
+
     _loading = true;
     notifyListeners();
+
     try {
-      final ids = await DbService.getRecentViewed();
-      if (ids.isEmpty) {
+      _cachedIds = dbIds;
+      if (dbIds.isEmpty) {
         _recents = [];
       } else {
-        // IDs are stored in order, so latest should be last usually?
-        // DbService.getRecentViewed() implementation likely returns them in some order.
-        // Assuming we want reversed (newest first).
-        // Let's check logic: _galleries = details...reversed.toList();
-
         final details = await Future.wait(
-          ids.map((id) => ApiService.getDetailCached(id)),
+          dbIds.map((id) => ApiService.getDetailCached(id)),
         );
         _recents = details.where((d) => d.id != 0).toList();
       }
@@ -34,6 +39,14 @@ class RecentState extends ChangeNotifier {
       _loading = false;
       notifyListeners();
     }
+  }
+
+  bool _listEquals(List<int> a, List<int> b) {
+    if (a.length != b.length) return false;
+    for (int i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
   }
 
   Future<void> removeRecent(int id) async {
@@ -48,6 +61,7 @@ class RecentState extends ChangeNotifier {
 
   void clear() {
     _recents = [];
+    _cachedIds = [];
     notifyListeners();
   }
 }

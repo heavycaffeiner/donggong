@@ -3,8 +3,10 @@ import 'package:provider/provider.dart';
 import '../presentation/state/gallery_state.dart';
 import '../presentation/state/settings_state.dart';
 import '../presentation/state/search_state.dart';
+import '../presentation/state/navigation_state.dart';
 import '../presentation/widgets/common/gallery_list_view.dart';
 import '../presentation/widgets/common/search_bar_widget.dart';
+import '../models/types.dart' show CustomScreen;
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -15,28 +17,46 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final ScrollController _scrollController = ScrollController();
+  late NavigationState _navState;
+  late SearchState _searchState;
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    _navState = Provider.of<NavigationState>(context, listen: false);
+    _searchState = Provider.of<SearchState>(context, listen: false);
+    _navState.addListener(_onNavigationChanged);
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final galleryState = Provider.of<GalleryState>(context, listen: false);
-      final settingsState = Provider.of<SettingsState>(context, listen: false);
-      final searchState = Provider.of<SearchState>(context, listen: false);
-      galleryState.clear();
-      galleryState.loadGalleries(
-        reset: true,
-        defaultLang: settingsState.settings.defaultLanguage,
-        query: searchState.query,
-      );
+      _loadIfNeeded(force: true);
     });
   }
 
   @override
   void dispose() {
     _scrollController.dispose();
+    _navState.removeListener(_onNavigationChanged);
     super.dispose();
+  }
+
+  void _onNavigationChanged() {
+    // Load when switching to home tab
+    if (_navState.screen == CustomScreen.home &&
+        _navState.previousScreen != CustomScreen.reader) {
+      _loadIfNeeded();
+    }
+  }
+
+  void _loadIfNeeded({bool force = false}) {
+    final galleryState = Provider.of<GalleryState>(context, listen: false);
+    final settingsState = Provider.of<SettingsState>(context, listen: false);
+    galleryState.loadGalleries(
+      reset: true,
+      defaultLang: settingsState.settings.defaultLanguage,
+      query: _searchState.query,
+      force: force,
+    );
   }
 
   void _onScroll() {
@@ -44,10 +64,9 @@ class _HomeScreenState extends State<HomeScreen> {
         _scrollController.position.maxScrollExtent - 200) {
       final galleryState = Provider.of<GalleryState>(context, listen: false);
       final settingsState = Provider.of<SettingsState>(context, listen: false);
-      final searchState = Provider.of<SearchState>(context, listen: false);
       galleryState.loadGalleries(
         defaultLang: settingsState.settings.defaultLanguage,
-        query: searchState.query,
+        query: _searchState.query,
       );
     }
   }
@@ -56,7 +75,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final galleryState = Provider.of<GalleryState>(context);
     final settingsState = Provider.of<SettingsState>(context, listen: false);
-    final searchState = Provider.of<SearchState>(context, listen: false);
 
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
@@ -71,7 +89,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 scrollController: _scrollController,
                 onRefresh: () => galleryState.refresh(
                   settingsState.settings.defaultLanguage,
-                  query: searchState.query,
+                  query: _searchState.query,
                 ),
               ),
             ),
@@ -81,4 +99,3 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 }
-

@@ -5,7 +5,7 @@ import 'detail_actions.dart';
 import 'detail_metadata.dart';
 
 class DetailBottomSheet extends StatefulWidget {
-  final GalleryItem item;
+  final GalleryDetail item;
 
   const DetailBottomSheet({super.key, required this.item});
 
@@ -99,9 +99,9 @@ class _DetailBottomSheetState extends State<DetailBottomSheet> {
                         children: [
                           DetailHeader(item: widget.item),
                           DetailActions(item: widget.item),
-                          const SizedBox(height: 24),
+                          const SizedBox(height: 16),
                           DetailMetadata(item: widget.item),
-                          const SizedBox(height: 32),
+                          const SizedBox(height: 16),
                         ],
                       ),
                     ),

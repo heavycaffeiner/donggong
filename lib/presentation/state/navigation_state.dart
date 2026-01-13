@@ -6,8 +6,11 @@ class NavigationState extends ChangeNotifier {
   CustomScreen get screen => _screen;
 
   CustomScreen _lastTab = CustomScreen.home;
+  CustomScreen? _previousScreen;
+  CustomScreen? get previousScreen => _previousScreen;
 
   void setScreen(CustomScreen s) {
+    _previousScreen = _screen;
     if (s != CustomScreen.reader) {
       _lastTab = s;
     }
@@ -15,7 +18,5 @@ class NavigationState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void closeReader() {
-    setScreen(_lastTab);
-  }
+  void closeReader() => setScreen(_lastTab);
 }

@@ -7,7 +7,7 @@ import '../../state/navigation_state.dart';
 import '../../state/reader_state.dart';
 
 class DetailActions extends StatelessWidget {
-  final GalleryItem item;
+  final GalleryDetail item;
 
   const DetailActions({super.key, required this.item});
 
