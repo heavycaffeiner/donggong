@@ -43,7 +43,7 @@ class _SearchBarWidgetState extends ConsumerState<SearchBarWidget> {
       final parts = t.split(':');
       final type = parts[0];
       final value = parts[1];
-      items.add(FavoriteChipItem(t, t, type, value));
+      items.add(FavoriteChipItem(t, t.replaceAll(' ', '_'), type, value));
     }
     for (var t in data.favoriteGroup) {
       final label = format('group', t);

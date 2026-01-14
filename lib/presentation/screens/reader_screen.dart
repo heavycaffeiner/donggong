@@ -18,6 +18,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   late PageController _pageController;
   late ScrollController _webtoonScrollController;
   int _currentPage = 0;
+  bool _isScrollEnabled = true;
+  bool _isZoomEnabled = false;
+  int _pointerCount = 0;
 
   @override
   void initState() {
@@ -90,38 +93,65 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 
         return Scaffold(
           backgroundColor: Colors.black,
-          body: Stack(
-            children: [
-              GestureDetector(
-                onTap: () => ref.read(readerControlsProvider.notifier).toggle(),
-                child: _buildReaderContent(
-                  gallery: gallery,
-                  readerMode: readerMode,
-                  isTablet: isTablet,
+          body: Listener(
+            onPointerDown: (_) => _updatePointerCount(1),
+            onPointerUp: (_) => _updatePointerCount(-1),
+            onPointerCancel: (_) => _resetPointerCount(),
+            child: Stack(
+              children: [
+                GestureDetector(
+                  onTap: () =>
+                      ref.read(readerControlsProvider.notifier).toggle(),
+                  child: _buildReaderContent(
+                    gallery: gallery,
+                    readerMode: readerMode,
+                    isTablet: isTablet,
+                  ),
                 ),
-              ),
 
-              // Top Bar
-              _buildTopBar(
-                context: context,
-                gallery: gallery,
-                controlsVisible: controlsVisible,
-                isFav: isFav,
-                theme: theme,
-                readerMode: readerMode,
-              ),
+                // Top Bar
+                _buildTopBar(
+                  context: context,
+                  gallery: gallery,
+                  controlsVisible: controlsVisible,
+                  isFav: isFav,
+                  theme: theme,
+                  readerMode: readerMode,
+                ),
 
-              // Bottom Slider
-              _buildBottomBar(
-                controlsVisible: controlsVisible,
-                totalPages: totalPages,
-                readerMode: readerMode,
-              ),
-            ],
+                // Bottom Slider
+                _buildBottomBar(
+                  controlsVisible: controlsVisible,
+                  totalPages: totalPages,
+                  readerMode: readerMode,
+                ),
+              ],
+            ),
           ),
         );
       },
     );
+  }
+
+  void _updatePointerCount(int delta) {
+    setState(() {
+      _pointerCount += delta;
+      if (_pointerCount < 0) _pointerCount = 0;
+      _updateGestures();
+    });
+  }
+
+  void _resetPointerCount() {
+    setState(() {
+      _pointerCount = 0;
+      _updateGestures();
+    });
+  }
+
+  void _updateGestures() {
+    // 포인터가 2개 이상일 때만 줌/패닝 활성화 및 스크롤 차단
+    _isZoomEnabled = _pointerCount >= 2;
+    _isScrollEnabled = _pointerCount < 2;
   }
 
   Widget _buildReaderContent({
@@ -145,14 +175,21 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     required bool isHorizontal,
     required bool isTablet,
   }) {
+    final ScrollPhysics physics;
+    if (!_isScrollEnabled) {
+      physics = const NeverScrollableScrollPhysics();
+    } else if (isTablet) {
+      physics = const BouncingScrollPhysics(
+        decelerationRate: ScrollDecelerationRate.fast,
+      );
+    } else {
+      physics = const PageScrollPhysics();
+    }
+
     return PageView.builder(
       controller: _pageController,
       scrollDirection: isHorizontal ? Axis.horizontal : Axis.vertical,
-      physics: isTablet
-          ? const BouncingScrollPhysics(
-              decelerationRate: ScrollDecelerationRate.fast,
-            )
-          : const PageScrollPhysics(),
+      physics: physics,
       itemCount: gallery.images.length,
       onPageChanged: (index) {
         setState(() => _currentPage = index);
@@ -160,7 +197,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       },
       itemBuilder: (context, index) {
         final img = gallery.images[index];
-        return ReaderImage(img: img);
+        return ReaderImage(img: img, isZoomEnabled: _isZoomEnabled);
       },
     );
   }
@@ -183,11 +220,13 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       },
       child: ListView.builder(
         controller: _webtoonScrollController,
-        physics: const BouncingScrollPhysics(),
+        physics: _isScrollEnabled
+            ? const BouncingScrollPhysics()
+            : const NeverScrollableScrollPhysics(),
         itemCount: gallery.images.length,
         itemBuilder: (context, index) {
           final img = gallery.images[index];
-          return WebtoonImage(img: img);
+          return WebtoonImage(img: img, isZoomEnabled: _isZoomEnabled);
         },
       ),
     );
@@ -207,156 +246,160 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       top: controlsVisible ? 0 : -100,
       left: 0,
       right: 0,
-      child: Container(
-        color: Colors.black.withValues(alpha: 0.85),
-        child: SafeArea(
-          bottom: false,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-            child: Row(
-              children: [
-                IconButton(
-                  icon: const Icon(
-                    Icons.arrow_back_ios_new,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                  onPressed: () =>
-                      ref.read(navigationProvider.notifier).closeReader(),
-                ),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        gallery.title,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        '${_currentPage + 1} / ${gallery.images.length}',
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  icon: Icon(
-                    isFav ? Icons.favorite : Icons.favorite_border,
-                    color: isFav ? theme.colorScheme.primary : Colors.white,
-                  ),
-                  onPressed: () => ref
-                      .read(favoriteProvider.notifier)
-                      .toggleFavorite('gallery', gallery.id.toString()),
-                ),
-                PopupMenuButton<String>(
-                  icon: const Icon(Icons.more_vert, color: Colors.white),
-                  onSelected: (value) {
-                    if (value == 'detail') {
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        backgroundColor: Colors.transparent,
-                        builder: (context) => DetailBottomSheet(item: gallery),
-                      );
-                    } else if (value == 'mode_vertical') {
-                      ref
-                          .read(settingsProvider.notifier)
-                          .setSetting('readerMode', 'verticalPage');
-                    } else if (value == 'mode_horizontal') {
-                      ref
-                          .read(settingsProvider.notifier)
-                          .setSetting('readerMode', 'horizontalPage');
-                    } else if (value == 'mode_webtoon') {
-                      ref
-                          .read(settingsProvider.notifier)
-                          .setSetting('readerMode', 'webtoon');
-                    }
-                  },
-                  itemBuilder: (context) => [
-                    const PopupMenuItem(
-                      value: 'detail',
-                      child: Text('작품 상세정보'),
+      child: IgnorePointer(
+        ignoring: !controlsVisible,
+        child: Container(
+          color: Colors.black.withValues(alpha: 0.85),
+          child: SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(
+                      Icons.arrow_back_ios_new,
+                      color: Colors.white,
+                      size: 20,
                     ),
-                    const PopupMenuDivider(),
-                    PopupMenuItem(
-                      value: 'mode_vertical',
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.swap_vert,
-                            color: readerMode == 'verticalPage'
-                                ? theme.colorScheme.primary
-                                : null,
+                    onPressed: () =>
+                        ref.read(navigationProvider.notifier).closeReader(),
+                  ),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          gallery.title,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
                           ),
-                          const SizedBox(width: 8),
-                          Text(
-                            '세로 페이지',
-                            style: TextStyle(
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          '${_currentPage + 1} / ${gallery.images.length}',
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: Icon(
+                      isFav ? Icons.favorite : Icons.favorite_border,
+                      color: isFav ? theme.colorScheme.primary : Colors.white,
+                    ),
+                    onPressed: () => ref
+                        .read(favoriteProvider.notifier)
+                        .toggleFavorite('gallery', gallery.id.toString()),
+                  ),
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert, color: Colors.white),
+                    onSelected: (value) {
+                      if (value == 'detail') {
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (context) =>
+                              DetailBottomSheet(item: gallery),
+                        );
+                      } else if (value == 'mode_vertical') {
+                        ref
+                            .read(settingsProvider.notifier)
+                            .setSetting('readerMode', 'verticalPage');
+                      } else if (value == 'mode_horizontal') {
+                        ref
+                            .read(settingsProvider.notifier)
+                            .setSetting('readerMode', 'horizontalPage');
+                      } else if (value == 'mode_webtoon') {
+                        ref
+                            .read(settingsProvider.notifier)
+                            .setSetting('readerMode', 'webtoon');
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: 'detail',
+                        child: Text('작품 상세정보'),
+                      ),
+                      const PopupMenuDivider(),
+                      PopupMenuItem(
+                        value: 'mode_vertical',
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.swap_vert,
                               color: readerMode == 'verticalPage'
                                   ? theme.colorScheme.primary
                                   : null,
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 8),
+                            Text(
+                              '세로 페이지',
+                              style: TextStyle(
+                                color: readerMode == 'verticalPage'
+                                    ? theme.colorScheme.primary
+                                    : null,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    PopupMenuItem(
-                      value: 'mode_horizontal',
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.swap_horiz,
-                            color: readerMode == 'horizontalPage'
-                                ? theme.colorScheme.primary
-                                : null,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            '가로 페이지',
-                            style: TextStyle(
+                      PopupMenuItem(
+                        value: 'mode_horizontal',
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.swap_horiz,
                               color: readerMode == 'horizontalPage'
                                   ? theme.colorScheme.primary
                                   : null,
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 8),
+                            Text(
+                              '가로 페이지',
+                              style: TextStyle(
+                                color: readerMode == 'horizontalPage'
+                                    ? theme.colorScheme.primary
+                                    : null,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    PopupMenuItem(
-                      value: 'mode_webtoon',
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.view_day,
-                            color: readerMode == 'webtoon'
-                                ? theme.colorScheme.primary
-                                : null,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            '웹툰 (연속 스크롤)',
-                            style: TextStyle(
+                      PopupMenuItem(
+                        value: 'mode_webtoon',
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.view_day,
                               color: readerMode == 'webtoon'
                                   ? theme.colorScheme.primary
                                   : null,
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 8),
+                            Text(
+                              '웹툰 (연속 스크롤)',
+                              style: TextStyle(
+                                color: readerMode == 'webtoon'
+                                    ? theme.colorScheme.primary
+                                    : null,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -375,51 +418,56 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       bottom: controlsVisible ? 0 : -60,
       left: 0,
       right: 0,
-      child: Container(
-        color: Colors.black.withValues(alpha: 0.85),
-        child: SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              children: [
-                Text(
-                  '${_currentPage + 1}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
+      child: IgnorePointer(
+        ignoring: !controlsVisible,
+        child: Container(
+          color: Colors.black.withValues(alpha: 0.85),
+          child: SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  Text(
+                    '${_currentPage + 1}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-                Expanded(
-                  child: Slider(
-                    value: _currentPage.toDouble(),
-                    min: 0,
-                    max: (totalPages - 1).toDouble(),
-                    onChanged: (value) {
-                      final page = value.round();
-                      if (readerMode == 'webtoon') {
-                        // 웹툰 모드에서는 스크롤 위치 조정
-                        final scrollFraction = page / (totalPages - 1);
-                        final targetOffset =
-                            _webtoonScrollController.position.maxScrollExtent *
-                            scrollFraction;
-                        _webtoonScrollController.jumpTo(targetOffset);
-                      } else {
-                        _pageController.jumpToPage(page);
-                      }
-                    },
+                  Expanded(
+                    child: Slider(
+                      value: _currentPage.toDouble(),
+                      min: 0,
+                      max: (totalPages - 1).toDouble(),
+                      onChanged: (value) {
+                        final page = value.round();
+                        if (readerMode == 'webtoon') {
+                          // 웹툰 모드에서는 스크롤 위치 조정
+                          final scrollFraction = page / (totalPages - 1);
+                          final targetOffset =
+                              _webtoonScrollController
+                                  .position
+                                  .maxScrollExtent *
+                              scrollFraction;
+                          _webtoonScrollController.jumpTo(targetOffset);
+                        } else {
+                          _pageController.jumpToPage(page);
+                        }
+                      },
+                    ),
                   ),
-                ),
-                Text(
-                  '$totalPages',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
+                  Text(
+                    '$totalPages',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -431,7 +479,12 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 /// 페이지 모드용 이미지 위젯 (세로/가로 페이지)
 class ReaderImage extends StatefulWidget {
   final GalleryImage img;
-  const ReaderImage({super.key, required this.img});
+  final bool isZoomEnabled;
+  const ReaderImage({
+    super.key,
+    required this.img,
+    required this.isZoomEnabled,
+  });
 
   @override
   State<ReaderImage> createState() => _ReaderImageState();
@@ -527,8 +580,8 @@ class _ReaderImageState extends State<ReaderImage>
         transformationController: _transformController,
         minScale: _minScale,
         maxScale: _maxScale,
-        panEnabled: _isZoomed,
-        scaleEnabled: true,
+        panEnabled: false,
+        scaleEnabled: widget.isZoomEnabled,
         child: CachedNetworkImage(
           key: ValueKey('${widget.img.url}_$_retryKey'),
           imageUrl: widget.img.url,
@@ -576,7 +629,12 @@ class _ReaderImageState extends State<ReaderImage>
 /// 웹툰 모드용 이미지 위젯 (연속 스크롤 + 줌 제스처 충돌 해결)
 class WebtoonImage extends StatefulWidget {
   final GalleryImage img;
-  const WebtoonImage({super.key, required this.img});
+  final bool isZoomEnabled;
+  const WebtoonImage({
+    super.key,
+    required this.img,
+    required this.isZoomEnabled,
+  });
 
   @override
   State<WebtoonImage> createState() => _WebtoonImageState();
@@ -674,8 +732,8 @@ class _WebtoonImageState extends State<WebtoonImage>
         transformationController: _transformController,
         minScale: _minScale,
         maxScale: _maxScale,
-        panEnabled: _isZoomed,
-        scaleEnabled: true,
+        panEnabled: false,
+        scaleEnabled: widget.isZoomEnabled,
         child: CachedNetworkImage(
           key: ValueKey('${widget.img.url}_$_retryKey'),
           imageUrl: widget.img.url,
