@@ -59,51 +59,56 @@ class _DetailBottomSheetState extends State<DetailBottomSheet> {
               ),
             ],
           ),
-          child: SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onVerticalDragUpdate: (details) {
-                    if (details.delta.dy > 0) {
-                      setState(() => _dragOffset += details.delta.dy);
-                    } else {
-                      setState(
-                        () => _dragOffset = (_dragOffset + details.delta.dy)
-                            .clamp(0, double.infinity),
-                      );
-                    }
-                  },
-                  onVerticalDragEnd: (details) {
-                    if (_dragOffset > 80 ||
-                        details.velocity.pixelsPerSecond.dy > 500) {
-                      Navigator.of(context).pop();
-                    } else {
-                      setState(() => _dragOffset = 0);
-                    }
-                  },
-                  child: _buildDragHandle(context),
-                ),
-                Flexible(
-                  child: NotificationListener<ScrollNotification>(
-                    onNotification: _handleScrollNotification,
-                    child: SingleChildScrollView(
-                      physics: const ClampingScrollPhysics(),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          DetailHeader(item: widget.item),
-                          DetailActions(item: widget.item),
-                          const SizedBox(height: 16),
-                          DetailMetadata(item: widget.item),
-                          const SizedBox(height: 16),
-                        ],
+          child: ScaffoldMessenger(
+            child: Scaffold(
+              backgroundColor: Colors.transparent,
+              body: SafeArea(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onVerticalDragUpdate: (details) {
+                        if (details.delta.dy > 0) {
+                          setState(() => _dragOffset += details.delta.dy);
+                        } else {
+                          setState(
+                            () => _dragOffset = (_dragOffset + details.delta.dy)
+                                .clamp(0, double.infinity),
+                          );
+                        }
+                      },
+                      onVerticalDragEnd: (details) {
+                        if (_dragOffset > 80 ||
+                            details.velocity.pixelsPerSecond.dy > 500) {
+                          Navigator.of(context).pop();
+                        } else {
+                          setState(() => _dragOffset = 0);
+                        }
+                      },
+                      child: _buildDragHandle(context),
+                    ),
+                    Flexible(
+                      child: NotificationListener<ScrollNotification>(
+                        onNotification: _handleScrollNotification,
+                        child: SingleChildScrollView(
+                          physics: const ClampingScrollPhysics(),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              DetailHeader(item: widget.item),
+                              DetailActions(item: widget.item),
+                              const SizedBox(height: 16),
+                              DetailMetadata(item: widget.item),
+                              const SizedBox(height: 16),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ),

@@ -161,18 +161,6 @@ class TagChip extends ConsumerWidget {
     String value,
     bool currentFav,
   ) async {
-    print('type: $type, value: $value, currentFav: $currentFav');
     await ref.read(favoriteProvider.notifier).toggleFavorite(type, value);
-
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(currentFav ? "'$value' 즐겨찾기 해제됨" : "'$value' 즐겨찾기 추가됨"),
-          duration: const Duration(seconds: 1),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
   }
 }
