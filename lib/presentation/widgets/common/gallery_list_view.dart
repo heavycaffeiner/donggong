@@ -76,6 +76,7 @@ class GalleryListView extends ConsumerWidget {
           openReader: (id) => _openReader(ref, id),
           showDetail: (item) => _showDetail(context, item),
           scrollController: scrollController,
+          onRefresh: onRefresh,
         ),
       );
     }
@@ -164,6 +165,7 @@ class _PaginatedView extends StatelessWidget {
   final void Function(int id) openReader;
   final void Function(GalleryDetail item) showDetail;
   final ScrollController? scrollController;
+  final Future<void> Function()? onRefresh;
 
   const _PaginatedView({
     required this.items,
@@ -176,6 +178,7 @@ class _PaginatedView extends StatelessWidget {
     required this.openReader,
     required this.showDetail,
     this.scrollController,
+    this.onRefresh,
   });
 
   @override
@@ -183,45 +186,48 @@ class _PaginatedView extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
+    Widget listView = isLoading
+        ? const LoadingWidget()
+        : ListView.builder(
+            controller: scrollController,
+            physics: const AlwaysScrollableScrollPhysics(),
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            itemCount: items.length,
+            itemBuilder: (context, index) {
+              final item = items[index];
+              final card = GalleryCard(
+                item: item,
+                onTap: () => openReader(item.id),
+                onLongPress: () => showDetail(item),
+              );
+
+              if (isDismissible && onDismissed != null) {
+                return Dismissible(
+                  key: Key(item.id.toString()),
+                  direction: DismissDirection.endToStart,
+                  background: Container(
+                    color: Colors.red,
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.only(right: 20),
+                    child: const Icon(Icons.delete, color: Colors.white),
+                  ),
+                  onDismissed: (_) => onDismissed!(item.id),
+                  child: card,
+                );
+              }
+
+              return card;
+            },
+          );
+
+    if (onRefresh != null) {
+      listView = RefreshIndicator(onRefresh: onRefresh!, child: listView);
+    }
+
     return Column(
       children: [
         // 아이템 리스트 (상단)
-        Expanded(
-          child: isLoading
-              ? const LoadingWidget()
-              : ListView.builder(
-                  controller: scrollController,
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  keyboardDismissBehavior:
-                      ScrollViewKeyboardDismissBehavior.onDrag,
-                  itemCount: items.length,
-                  itemBuilder: (context, index) {
-                    final item = items[index];
-                    final card = GalleryCard(
-                      item: item,
-                      onTap: () => openReader(item.id),
-                      onLongPress: () => showDetail(item),
-                    );
-
-                    if (isDismissible && onDismissed != null) {
-                      return Dismissible(
-                        key: Key(item.id.toString()),
-                        direction: DismissDirection.endToStart,
-                        background: Container(
-                          color: Colors.red,
-                          alignment: Alignment.centerRight,
-                          padding: const EdgeInsets.only(right: 20),
-                          child: const Icon(Icons.delete, color: Colors.white),
-                        ),
-                        onDismissed: (_) => onDismissed!(item.id),
-                        child: card,
-                      );
-                    }
-
-                    return card;
-                  },
-                ),
-        ),
+        Expanded(child: listView),
         // 페이지 네비게이션 바 (하단 - 항상 표시)
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
