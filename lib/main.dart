@@ -1,56 +1,27 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'services/db_service.dart';
-import 'screens/home_screen.dart';
-import 'screens/favorites_screen.dart';
-import 'screens/recent_screen.dart';
-import 'screens/settings_screen.dart';
-import 'screens/reader_screen.dart';
-
-import 'state/navigation_state.dart';
-import 'state/gallery_state.dart';
-import 'state/favorite_state.dart';
-import 'state/reader_state.dart';
-import 'state/settings_state.dart';
-import 'state/search_state.dart';
-import 'state/recent_state.dart';
-import 'widgets/navigation/app_drawer.dart';
-import 'models/types.dart' show CustomScreen;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'data/data.dart';
+import 'domain/domain.dart';
+import 'shared/shared.dart';
+import 'presentation/providers/providers.dart';
+import 'presentation/screens/screens.dart';
+import 'presentation/widgets/widgets.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await DbService.init();
-  runApp(const AppBootstrapper());
+  await AppDatabase.init();
+  runApp(const ProviderScope(child: DonggongApp()));
 }
 
-class AppBootstrapper extends StatelessWidget {
-  const AppBootstrapper({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => SettingsState()),
-        ChangeNotifierProvider(create: (_) => NavigationState()),
-        ChangeNotifierProvider(create: (_) => SearchState()),
-        ChangeNotifierProvider(create: (_) => GalleryState()),
-        ChangeNotifierProvider(create: (_) => FavoriteState()),
-        ChangeNotifierProvider(create: (_) => ReaderState()),
-        ChangeNotifierProvider(create: (_) => RecentState()),
-      ],
-      child: const DonggongApp(),
-    );
-  }
-}
-
-class DonggongApp extends StatelessWidget {
+class DonggongApp extends ConsumerWidget {
   const DonggongApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final settingsState = Provider.of<SettingsState>(context);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settingsAsync = ref.watch(settingsProvider);
+    final settings = settingsAsync.value ?? SettingsData.defaults();
 
-    final isOled = settingsState.settings.theme == 'oledDark';
+    final isOled = settings.theme == 'oledDark';
     const seedColor = Colors.indigo;
 
     final colorScheme =
@@ -103,7 +74,7 @@ class DonggongApp extends StatelessWidget {
   }
 }
 
-class MainWrapper extends StatelessWidget {
+class MainWrapper extends ConsumerWidget {
   const MainWrapper({super.key});
 
   static const _screens = [
@@ -114,18 +85,18 @@ class MainWrapper extends StatelessWidget {
   ];
 
   @override
-  Widget build(BuildContext context) {
-    final navState = Provider.of<NavigationState>(context);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final screen = ref.watch(navigationProvider);
+    final navNotifier = ref.read(navigationProvider.notifier);
 
-    // CustomScreen enum의 title/stackIndex 활용 (switch 문 제거)
-    final title = navState.screen.title.isEmpty ? '홈' : navState.screen.title;
-    final stackIndex = navState.screen.stackIndex;
+    final title = screen.title.isEmpty ? '홈' : screen.title;
+    final stackIndex = screen.stackIndex;
 
     return PopScope(
-      canPop: navState.screen != CustomScreen.reader,
+      canPop: screen != CustomScreen.reader,
       onPopInvokedWithResult: (didPop, result) {
-        if (!didPop && navState.screen == CustomScreen.reader) {
-          navState.closeReader();
+        if (!didPop && screen == CustomScreen.reader) {
+          navNotifier.closeReader();
         }
       },
       child: Stack(
@@ -140,7 +111,7 @@ class MainWrapper extends StatelessWidget {
             drawer: const AppDrawer(),
             body: IndexedStack(index: stackIndex, children: _screens),
           ),
-          if (navState.screen == CustomScreen.reader) const ReaderScreen(),
+          if (screen == CustomScreen.reader) const ReaderScreen(),
         ],
       ),
     );
