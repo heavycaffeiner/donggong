@@ -9,14 +9,38 @@ class SettingsRepository {
   Future<SettingsData> getSettings() async {
     try {
       final rows = await AppDatabase.querySettings();
-      final settings = SettingsData.defaults();
+      final defaults = SettingsData.defaults();
+
+      String defaultLanguage = defaults.defaultLanguage;
+      String theme = defaults.theme;
+      String listingMode = defaults.listingMode;
+      String readerMode = defaults.readerMode;
+      String cardViewMode = defaults.cardViewMode;
+
       for (final row in rows) {
         final key = row['key'] as String;
         final value = row['value'] as String;
-        if (key == 'defaultLanguage') settings.defaultLanguage = value;
-        if (key == 'theme') settings.theme = value;
+        switch (key) {
+          case 'defaultLanguage':
+            defaultLanguage = value;
+          case 'theme':
+            theme = value;
+          case 'listingMode':
+            listingMode = value;
+          case 'readerMode':
+            readerMode = value;
+          case 'cardViewMode':
+            cardViewMode = value;
+        }
       }
-      return settings;
+
+      return SettingsData(
+        defaultLanguage: defaultLanguage,
+        theme: theme,
+        listingMode: listingMode,
+        readerMode: readerMode,
+        cardViewMode: cardViewMode,
+      );
     } catch (_) {
       return SettingsData.defaults();
     }

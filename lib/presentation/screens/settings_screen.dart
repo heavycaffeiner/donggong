@@ -33,12 +33,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            Text(
-              '기본 언어',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            // 기본 언어
+            _buildSectionTitle('기본 언어', theme),
             const SizedBox(height: 12),
             Wrap(
               spacing: 8,
@@ -59,12 +55,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
             const SizedBox(height: 32),
 
-            Text(
-              '테마',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            // 테마
+            _buildSectionTitle('테마', theme),
             const SizedBox(height: 12),
             Row(
               children: [
@@ -95,12 +87,116 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
             const SizedBox(height: 32),
 
-            Text(
-              '즐겨찾기 백업/복원',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+            // 리스팅 모드
+            _buildSectionTitle('리스팅 모드', theme),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                ChoiceChip(
+                  label: const Text('무한 스크롤'),
+                  selected: settings.listingMode == 'scroll',
+                  onSelected: (selected) {
+                    if (selected) {
+                      ref
+                          .read(settingsProvider.notifier)
+                          .setSetting('listingMode', 'scroll');
+                    }
+                  },
+                ),
+                const SizedBox(width: 8),
+                ChoiceChip(
+                  label: const Text('페이지'),
+                  selected: settings.listingMode == 'pagination',
+                  onSelected: (selected) {
+                    if (selected) {
+                      ref
+                          .read(settingsProvider.notifier)
+                          .setSetting('listingMode', 'pagination');
+                    }
+                  },
+                ),
+              ],
             ),
+            const SizedBox(height: 32),
+
+            // 뷰어 모드
+            _buildSectionTitle('뷰어 모드', theme),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                ChoiceChip(
+                  label: const Text('세로 페이지'),
+                  selected: settings.readerMode == 'verticalPage',
+                  onSelected: (selected) {
+                    if (selected) {
+                      ref
+                          .read(settingsProvider.notifier)
+                          .setSetting('readerMode', 'verticalPage');
+                    }
+                  },
+                ),
+                ChoiceChip(
+                  label: const Text('가로 페이지'),
+                  selected: settings.readerMode == 'horizontalPage',
+                  onSelected: (selected) {
+                    if (selected) {
+                      ref
+                          .read(settingsProvider.notifier)
+                          .setSetting('readerMode', 'horizontalPage');
+                    }
+                  },
+                ),
+                ChoiceChip(
+                  label: const Text('웹툰 (연속 스크롤)'),
+                  selected: settings.readerMode == 'webtoon',
+                  onSelected: (selected) {
+                    if (selected) {
+                      ref
+                          .read(settingsProvider.notifier)
+                          .setSetting('readerMode', 'webtoon');
+                    }
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 32),
+
+            // 카드 뷰 모드
+            _buildSectionTitle('카드 뷰 모드', theme),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                ChoiceChip(
+                  label: const Text('썸네일 위주'),
+                  selected: settings.cardViewMode == 'thumbnail',
+                  onSelected: (selected) {
+                    if (selected) {
+                      ref
+                          .read(settingsProvider.notifier)
+                          .setSetting('cardViewMode', 'thumbnail');
+                    }
+                  },
+                ),
+                const SizedBox(width: 8),
+                ChoiceChip(
+                  label: const Text('정보 위주'),
+                  selected: settings.cardViewMode == 'detailed',
+                  onSelected: (selected) {
+                    if (selected) {
+                      ref
+                          .read(settingsProvider.notifier)
+                          .setSetting('cardViewMode', 'detailed');
+                    }
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 32),
+
+            // 즐겨찾기 백업/복원
+            _buildSectionTitle('즐겨찾기 백업/복원', theme),
             const SizedBox(height: 12),
             Row(
               children: [
@@ -117,12 +213,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
             const SizedBox(height: 32),
 
-            Text(
-              '위험 구역',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            // 위험 구역
+            _buildSectionTitle('위험 구역', theme),
             const SizedBox(height: 12),
             Column(
               children: [
@@ -185,6 +277,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title, ThemeData theme) {
+    return Text(
+      title,
+      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
     );
   }
 

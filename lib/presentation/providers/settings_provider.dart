@@ -19,8 +19,17 @@ class Settings extends _$Settings {
     await repo.setSetting(key, value);
 
     final current = state.value ?? SettingsData.defaults();
-    if (key == 'defaultLanguage') current.defaultLanguage = value;
-    if (key == 'theme') current.theme = value;
-    state = AsyncValue.data(current);
+
+    // copyWith로 새 인스턴스 생성하여 Riverpod 변경 감지 보장
+    final updated = switch (key) {
+      'defaultLanguage' => current.copyWith(defaultLanguage: value),
+      'theme' => current.copyWith(theme: value),
+      'listingMode' => current.copyWith(listingMode: value),
+      'readerMode' => current.copyWith(readerMode: value),
+      'cardViewMode' => current.copyWith(cardViewMode: value),
+      _ => current,
+    };
+
+    state = AsyncValue.data(updated);
   }
 }

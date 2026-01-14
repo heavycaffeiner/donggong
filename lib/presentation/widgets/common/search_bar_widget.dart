@@ -381,7 +381,8 @@ class _SearchBarWidgetState extends ConsumerState<SearchBarWidget> {
     final colorScheme = Theme.of(context).colorScheme;
 
     ref.listen(navigationProvider, (prev, next) {
-      if (next == CustomScreen.reader) {
+      // 화면 전환 시 항상 오버레이 정리
+      if (prev != next) {
         _hideOverlay();
         _focusNode.unfocus();
       }
@@ -443,9 +444,10 @@ class _SearchBarWidgetState extends ConsumerState<SearchBarWidget> {
                   onPressed: () {
                     _controller.clear();
                     ref.read(searchProvider.notifier).clear();
-                    setState(() => _suggestions = []);
                     _hideOverlay();
-                    _performSearch(reload: true);
+                    _focusNode.unfocus();
+                    _performSearch(reload: true, force: true);
+                    setState(() {});
                   },
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(
@@ -497,7 +499,7 @@ class _SearchBarWidgetState extends ConsumerState<SearchBarWidget> {
     }
   }
 
-  void _performSearch({bool reload = false}) {
+  void _performSearch({bool reload = false, bool force = false}) {
     final screen = ref.read(navigationProvider);
     final searchState = ref.read(searchProvider);
     final settingsAsync = ref.read(settingsProvider);
@@ -518,6 +520,7 @@ class _SearchBarWidgetState extends ConsumerState<SearchBarWidget> {
               reset: true,
               query: searchState.query,
               defaultLang: settings.defaultLanguage,
+              force: force,
             );
       }
     }

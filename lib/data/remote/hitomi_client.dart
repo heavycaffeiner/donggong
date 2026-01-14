@@ -32,6 +32,31 @@ class HitomiClient {
     );
   }
 
+  /// HTTP request to get total content length via Content-Range header
+  /// Range 요청으로 전체 파일 크기를 Content-Range 헤더에서 파싱
+  static Future<int?> getTotalContentLength(String url) async {
+    try {
+      // 0-3 범위로 요청하여 Content-Range 헤더에서 전체 크기 파싱
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {...AppConfig.defaultHeaders, 'Range': 'bytes=0-3'},
+      );
+      if (response.statusCode == 206) {
+        // Content-Range: bytes 0-3/1234567 형태에서 전체 크기 추출
+        final contentRange = response.headers['content-range'];
+        if (contentRange != null) {
+          final match = RegExp(r'/(\d+)$').firstMatch(contentRange);
+          if (match != null) {
+            return int.tryParse(match.group(1)!);
+          }
+        }
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Standard HTTP GET with Range header
   static Future<http.Response> getWithRange(String url, int start, int end) {
     return http.get(

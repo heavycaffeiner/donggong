@@ -35,20 +35,32 @@ class GalleryRepository {
     _timestamps[id] = DateTime.now();
   }
 
-  /// 갤러리 목록 조회
-  Future<List<GalleryDetail>> getList({
+  /// 갤러리 목록 조회 (리스트 + 전체 갤러리 수 반환)
+  Future<(List<GalleryDetail>, int)> getListWithTotal({
     int page = 1,
     String lang = 'korean',
   }) async {
     try {
-      final start = (page - 1) * AppConfig.nozomiRangeSize;
-      final end = page * AppConfig.nozomiRangeSize - 1;
+      final start = (page - 1) * AppConfig.nozomiRangeBytes;
+      final end = page * AppConfig.nozomiRangeBytes - 1;
       final res = await HitomiClient.getWithRange(
         '${AppConfig.cdnBase}/index-$lang.nozomi',
         start,
         end,
       );
-      if (res.statusCode != 200 && res.statusCode != 206) return [];
+      if (res.statusCode != 200 && res.statusCode != 206)
+        return (<GalleryDetail>[], 0);
+
+      // Content-Range 헤더에서 전체 갤러리 수 파싱
+      int totalCount = 0;
+      final contentRange = res.headers['content-range'];
+      if (contentRange != null) {
+        final match = RegExp(r'/(\d+)$').firstMatch(contentRange);
+        if (match != null) {
+          final totalBytes = int.tryParse(match.group(1)!) ?? 0;
+          totalCount = totalBytes ~/ 4; // nozomi는 4바이트(Int32) 배열
+        }
+      }
 
       final ids = HitomiClient.parseNozomi(res.bodyBytes);
       final details = await Future.wait(
@@ -60,9 +72,34 @@ class GalleryRepository {
           }
         }),
       );
-      return details.whereType<GalleryDetail>().toList();
+      return (details.whereType<GalleryDetail>().toList(), totalCount);
     } catch (_) {
-      return [];
+      return (<GalleryDetail>[], 0);
+    }
+  }
+
+  /// 갤러리 목록 조회 (기존 호환성용)
+  Future<List<GalleryDetail>> getList({
+    int page = 1,
+    String lang = 'korean',
+  }) async {
+    final result = await getListWithTotal(page: page, lang: lang);
+    return result.$1;
+  }
+
+  /// 전체 갤러리 수 조회 (nozomi 파일 크기 기반)
+  Future<int> getTotalCount({String lang = 'korean'}) async {
+    try {
+      final contentLength = await HitomiClient.getTotalContentLength(
+        '${AppConfig.cdnBase}/index-$lang.nozomi',
+      );
+      if (contentLength != null) {
+        // nozomi는 4바이트(Int32) 배열
+        return contentLength ~/ 4;
+      }
+      return 0;
+    } catch (_) {
+      return 0;
     }
   }
 
@@ -103,6 +140,7 @@ class GalleryRepository {
       parodys: parseTagList(json['parodys']),
       tags: parseTagList(json['tags'], isTag: true),
       thumbnail: thumb,
+      pageCount: files.length, // 파일 수로 페이지 수 설정
     );
 
     return (detail, json);
@@ -181,8 +219,8 @@ class GalleryRepository {
     }
   }
 
-  /// 검색
-  Future<List<GalleryDetail>> search(
+  /// 검색 (결과 리스트 + 전체 검색 결과 수 반환)
+  Future<(List<GalleryDetail>, int)> search(
     String query, {
     int page = 1,
     String defaultLang = 'all',
@@ -192,7 +230,7 @@ class GalleryRepository {
         .split(RegExp(r'\s+'))
         .where((t) => t.isNotEmpty)
         .toList();
-    if (terms.isEmpty) return [];
+    if (terms.isEmpty) return (<GalleryDetail>[], 0);
 
     final hasLang = terms.any((t) => t.startsWith('language:'));
     final lang = hasLang ? 'all' : defaultLang;
@@ -239,7 +277,7 @@ class GalleryRepository {
     }
 
     final idSets = await Future.wait(terms.map(fetchIds));
-    if (idSets.any((s) => s.isEmpty)) return [];
+    if (idSets.any((s) => s.isEmpty)) return (<GalleryDetail>[], 0);
 
     idSets.sort((a, b) => a.length.compareTo(b.length));
 
@@ -249,10 +287,11 @@ class GalleryRepository {
     }
 
     final sortedIds = common.toList()..sort((a, b) => b.compareTo(a));
+    final totalCount = sortedIds.length;
 
     final start = (page - 1) * AppConfig.pageSize;
-    if (start >= sortedIds.length) return [];
-    final end = (start + AppConfig.pageSize).clamp(0, sortedIds.length);
+    if (start >= totalCount) return (<GalleryDetail>[], totalCount);
+    final end = (start + AppConfig.pageSize).clamp(0, totalCount);
 
     final pagedIds = sortedIds.sublist(start, end);
     final details = await Future.wait(
@@ -264,6 +303,6 @@ class GalleryRepository {
         }
       }),
     );
-    return details.whereType<GalleryDetail>().toList();
+    return (details.whereType<GalleryDetail>().toList(), totalCount);
   }
 }

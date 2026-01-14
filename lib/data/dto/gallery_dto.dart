@@ -31,6 +31,7 @@ class GalleryDetail {
   final String? language;
   final List<String> tags;
   final List<GalleryImage> images;
+  final int pageCount; // 리스트에서 페이지 수 표시용
 
   const GalleryDetail({
     required this.id,
@@ -44,6 +45,7 @@ class GalleryDetail {
     this.language,
     required this.tags,
     this.images = const [],
+    this.pageCount = 0,
   });
 
   factory GalleryDetail.empty() => const GalleryDetail(
@@ -80,6 +82,7 @@ class GalleryDetail {
     String? language,
     List<String>? tags,
     List<GalleryImage>? images,
+    int? pageCount,
   }) => GalleryDetail(
     id: id ?? this.id,
     title: title ?? this.title,
@@ -92,6 +95,7 @@ class GalleryDetail {
     language: language ?? this.language,
     tags: tags ?? this.tags,
     images: images ?? this.images,
+    pageCount: pageCount ?? this.pageCount,
   );
 
   Map<String, dynamic> toJson() => {

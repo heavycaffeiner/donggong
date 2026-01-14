@@ -12,7 +12,12 @@ class AppConfig {
 
   // 페이지네이션
   static const int pageSize = 25;
-  static const int nozomiRangeSize = 100;
+
+  /// 페이지당 갤러리 ID 개수 (각 ID는 4바이트)
+  static const int itemsPerPage = 25;
+
+  /// Range 요청 바이트 크기 = itemsPerPage * 4
+  static const int nozomiRangeBytes = itemsPerPage * 4; // 100 bytes
 
   // API 엔드포인트
   static const String cdnBase = 'https://ltn.gold-usergeneratedcontent.net';
